@@ -3,7 +3,14 @@
 绝大部分以python代码实现。后续如有改动，将持续更新。
 
 # 2018-12-04更新python3版本
-python3的zlib库解压异常，获取key只能通过execjs执行js来完成。效率略有下降。
+python3的zlib库在解压数据时异常，获取key只能通过execjs执行js来完成。效率略有下降。
+#####py2
+* vl5x.py
+* docid_v27.py
+#####py3
+* vl5x.py
+* docid.py
+* docid.js
 
 ## 分析步骤
 https://www.jianshu.com/p/bac8b9be98e8
