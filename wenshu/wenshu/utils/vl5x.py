@@ -22,7 +22,7 @@ def strToLongEn3(str, step):
 
 def md5(str1):
     h1 = hashlib.md5()
-    h1.update(str1)
+    h1.update(str1.encode('utf-8'))
     return h1.hexdigest()
 
 

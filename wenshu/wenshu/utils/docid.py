@@ -8,11 +8,10 @@ from Crypto.Cipher import AES
 
 
 def DecryptInner(pwd, key):
-    unpad = lambda s: s[0:-ord(s[-1])]
     mode = AES.MODE_CBC
-    cipher = AES.new(key, mode, 'abcd134556abcedf')
-    decrypted = unpad(cipher.decrypt(pwd.decode('hex')))
-    return decrypted
+    cipher = AES.new(key, mode, 'abcd134556abcedf'.encode('utf-8'))
+    decrypted = cipher.decrypt(bytes.fromhex(pwd))
+    return decrypted.split(b'\x10')[0].decode()
 
 
 def Decrypt(str1, key):
@@ -75,10 +74,10 @@ def cb_btou(cccc):
     if len(cccc) == 4:
         cp = ((0x07 & ord(cccc[0])) << 18) | ((0x3f & ord(cccc[1])) << 12) | ((0x3f & ord(cccc[2])) << 6) | (
                 0x3f & ord(cccc[3])),
-        offset = cp - 0x10000;
+        offset = cp - 0x10000
         # print offsetoffset
         # return (fromCharCode((offset >>> 10) + 0xD800) + fromCharCode((offset & 0x3FF) + 0xDC00))
-        return (fromCharCode((offset >> 10) + 0xD800) + fromCharCode((offset & 0x3FF) + 0xDC00))
+        return fromCharCode((offset >> 10) + 0xD800) + fromCharCode((offset & 0x3FF) + 0xDC00)
     elif len(cccc) == 3:
         return fromCharCode(((0x0f & ord(cccc[0])) << 12) | ((0x3f & ord(cccc[1])) << 6) | (0x3f & ord(cccc[2])))
     else:
@@ -89,15 +88,16 @@ def btou(b):
     return re.sub(re_btou, cb_btou, b)
 
 
-def inflate(data):
-    try:
-        return zlib.decompress(data, -zlib.MAX_WBITS)
-    except zlib.error:
-        return zlib.decompress(data)
+def get_js(data):
+    with open('docid.js', 'r') as f:
+        js_data = f.read()
+    eval_js = execjs.compile(js_data)
+    data = eval_js.call('zip_inflate', data)
+    return data
 
 
 def unzip(str1):
-    return btou(inflate(fromBase64(str1)))
+    return btou(get_js(fromBase64(str1)))
 
 
 def getkey(str1):
@@ -107,7 +107,7 @@ def getkey(str1):
 
 
 def decode_docid(docid, key):
-    return Decrypt(unzip(docid), key)
+    return Decrypt(unzip(docid), key).replace('\f', '')
 
 
 if __name__ == '__main__':

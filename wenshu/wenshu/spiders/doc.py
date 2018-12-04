@@ -2,6 +2,7 @@
 import json
 import re
 import datetime
+import sys
 
 import scrapy
 from scrapy.log import logger
@@ -9,7 +10,11 @@ from scrapy.log import logger
 from wenshu.items import WenshuItem, DocInfo
 
 from wenshu.utils.vl5x import getvjkl5
-from wenshu.utils.docid import getkey, decode_docid
+
+if sys.version_info < (3,):
+    from wenshu.utils.docid_v27 import getkey, decode_docid
+else:
+    from wenshu.utils.docid import getkey, decode_docid
 
 
 class DocSpider(scrapy.Spider):
@@ -88,7 +93,7 @@ class DocSpider(scrapy.Spider):
             if not response.meta.get('key'):
                 format_key_str = result[0]['RunEval'].encode('utf-8')
                 key = getkey(format_key_str).encode('utf-8')
-                page_count = int(result[0]['Count']) / 20 if int(result[0]['Count']) / 20 == 0 else int(result[0]['Count']) / 20 + 1
+                page_count = int(result[0]['Count']) // 20 if int(result[0]['Count']) // 20 == 0 else int(result[0]['Count']) // 20 + 1
                 for page in range(2, page_count + 1):
                     data = {'Param': Param, 'Index': str(page), 'Page': '20', 'Order': u'法院层级', 'Direction': 'asc', 'vl5x': vjkl5}
                     yield scrapy.FormRequest('http://wenshu.court.gov.cn/List/ListContent', headers={'Cookie': cookie},
