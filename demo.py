@@ -7,6 +7,7 @@ import datetime
 
 
 import requests
+from lxml import etree
 from Crypto.Cipher import DES3
 
 
@@ -43,7 +44,7 @@ class Demo(object):
         self.cookie = cookie
 
     def make_ciphertext(self):
-        timestamp = str(int(time.time()) * 1000)
+        timestamp = str(int(time.time() * 1000))
         salt = ''.join([random.choice('0123456789qwertyuiopasdfghjklzxcvbnm') for _ in range(24)])
         iv = datetime.datetime.now().strftime('%Y%m%d')
         des = Des()
@@ -57,27 +58,26 @@ class Demo(object):
 
     def start_page(self):
         headers = {
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-            "Host": "wenshu.court.gov.cn",
-            "Referer": "http://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html",
+            # "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            # "Host": "wenshu.court.gov.cn",
+            # "Referer": "http://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36",
         }
         url = 'http://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html'
-        try:
-            with requests.get(url, headers=headers) as req:
-                req.raise_for_status()
-                cookie_80s = req.cookies.get('HM4hUBT0dDOn80S')
-                assert cookie_80s, '80s获取失败'
-                html = req.text
-
-            with requests.post(self.api, json={'html': html}) as req:
-                req.raise_for_status()
-                cookie_80t = req.json()['cookie']
-                assert cookie_80t, '80t生成失败'
-        except Exception as exc:
-            print(exc)
-        else:
-            self.cookie = f'HM4hUBT0dDOn80S={cookie_80s};HM4hUBT0dDOn80T={cookie_80t};HM4hUBT0dDOnenable=true'
+        with requests.get(url, headers=headers) as req:
+            req.raise_for_status()
+            cookie_80s = req.cookies.get('HM4hUBT0dDOn80S')
+            assert cookie_80s, '文书网异常，80s获取失败'
+            html = req.text
+        root = etree.HTML(html)
+        meta = root.xpath('//meta[last()]/@content')[0]
+        js_txt = root.xpath('//script[@r="m"]/text()')[0]
+        with requests.post(self.api, json={'meta': meta, 'js_txt': js_txt}) as req:
+            req.raise_for_status()
+            cookie_80t = req.json()['cookie']
+            assert cookie_80t, '80t生成失败'
+            print(cookie_80t)
+        self.cookie = f'HM4hUBT0dDOn80S={cookie_80s};HM4hUBT0dDOn80T={cookie_80t};HM4hUBT0dDOnenable=true'
 
     def get_list(self):
         if not self.cookie:
@@ -101,8 +101,8 @@ class Demo(object):
         url = 'http://wenshu.court.gov.cn/website/parse/rest.q4w'
         with requests.post(url, headers=headers, data=post_data) as req:
             req.raise_for_status()
+            assert req.text, "文书网接口异常"
             des = Des()
-            print(req.text)
             result = des.decrypt(req.json()['result'], req.json()['secretKey'])
             print(result)
         first_doc_id = json.loads(result)['queryResult']['resultList'][0]['rowkey']
@@ -125,14 +125,14 @@ class Demo(object):
         url = 'http://wenshu.court.gov.cn/website/parse/rest.q4w'
         with requests.post(url, headers=headers, data=post_data) as req:
             req.raise_for_status()
-            print(req.text)
+            assert req.text, "文书网接口异常"
             des = Des()
             result = des.decrypt(req.json()['result'], req.json()['secretKey'])
             print(result)
 
 
 if __name__ == '__main__':
-    api = 'http://118.24.27.218:8012/api'
+    api = 'http://118.24.27.218:8012/wenshu'
     sss = Demo(api=api)
     sss.start_page()
     sss.get_list()
