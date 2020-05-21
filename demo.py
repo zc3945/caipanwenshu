@@ -9,32 +9,28 @@ import datetime
 import requests
 from lxml import etree
 from Crypto.Cipher import DES3
+from Crypto.Util.Padding import pad, unpad
 
 
 class Des(object):
 
-    def pad(self, s):
-        return s + (DES3.block_size - len(s) % DES3.block_size) * chr(DES3.block_size - len(s) % DES3.block_size)
-
-    def unpad(self, s):
-        return s[0:-ord(s[-1])]
-
-    def encrypt(self, text, key):
-        text = self.pad(text)
+    @staticmethod
+    def encrypt(text, key):
+        text = pad(text.encode(), DES3.block_size)
         iv = datetime.datetime.now().strftime('%Y%m%d').encode()
         cryptor = DES3.new(key, DES3.MODE_CBC, iv)
         x = len(text) % 8
-        if x != 0: text = text + '\0' * (8 - x)
-        self.ciphertext = cryptor.encrypt(text.encode('utf-8'))
-        return base64.standard_b64encode(self.ciphertext).decode("utf-8")
+        ciphertext = cryptor.encrypt(text)
+        return base64.b64encode(ciphertext).decode("utf-8")
 
-    def decrypt(self, text, key):
+    @staticmethod
+    def decrypt(text, key):
         iv = datetime.datetime.now().strftime('%Y%m%d').encode()
         cryptor = DES3.new(key, DES3.MODE_CBC, iv)
-        de_text = base64.standard_b64decode(text)
+        de_text = base64.b64decode(text)
         plain_text = cryptor.decrypt(de_text)
-        out = self.unpad(plain_text.decode('utf-8'))
-        return out
+        out = unpad(plain_text, DES3.block_size)
+        return out.decode()
 
 
 class Demo(object):
@@ -58,9 +54,6 @@ class Demo(object):
 
     def start_page(self):
         headers = {
-            # "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-            # "Host": "wenshu.court.gov.cn",
-            # "Referer": "http://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36",
         }
         url = 'http://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html'
@@ -80,9 +73,7 @@ class Demo(object):
         self.cookie = f'HM4hUBT0dDOn80S={cookie_80s};HM4hUBT0dDOn80T={cookie_80t};HM4hUBT0dDOnenable=true'
 
     def get_list(self):
-        if not self.cookie:
-            print('没有正确生成cookie')
-            return
+        assert self.cookie, '没有正确生成cookie'
         headers = {
             'Cookie': self.cookie,
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
@@ -94,7 +85,7 @@ class Demo(object):
             'ciphertext': self.make_ciphertext(),
             'pageNum': 1,
             'pageSize': 5,
-            'queryCondition': [],
+            'queryCondition': '[{"key":"s42","value":"2020"}]',
             'cfg': 'com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO@queryDoc',
             '__RequestVerificationToken': token,
         }
@@ -102,8 +93,7 @@ class Demo(object):
         with requests.post(url, headers=headers, data=post_data) as req:
             req.raise_for_status()
             assert req.text, "文书网接口异常"
-            des = Des()
-            result = des.decrypt(req.json()['result'], req.json()['secretKey'])
+            result = Des.decrypt(req.json()['result'], req.json()['secretKey'])
             print(result)
         first_doc_id = json.loads(result)['queryResult']['resultList'][0]['rowkey']
         self.get_info(first_doc_id)
@@ -126,8 +116,8 @@ class Demo(object):
         with requests.post(url, headers=headers, data=post_data) as req:
             req.raise_for_status()
             assert req.text, "文书网接口异常"
-            des = Des()
-            result = des.decrypt(req.json()['result'], req.json()['secretKey'])
+            print(req.text)
+            result = Des.decrypt(req.json()['result'], req.json()['secretKey'])
             print(result)
 
 
